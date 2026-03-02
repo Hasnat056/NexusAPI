@@ -116,3 +116,8 @@ Authorization:
   "class_id" : 2
 }
 
+
+### Admin Program List
+GET http://localhost:8000/api/admin/programs/
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzcyNDg0NTgyLCJpYXQiOjE3NzI0ODQyODIsImp0aSI6Ijc4NWFkZDAyZDdmNzQ2ZDI5OTQyMGIwNWEzMTk4NWUxIiwidXNlcl9pZCI6IjkifQ._mhPKel-ictZmcurldqfv5Svv77CbSRalqBUQqDkBx0

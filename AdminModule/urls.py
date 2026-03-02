@@ -40,8 +40,8 @@ urlpatterns =[
 
     path('transcripts/', TranscriptListCreateAPIView.as_view()),
 
-    path('change-requests/', ChangeRequestListAPIView.as_view()),
-    path('change-requests/<int:pk>/', ChangeRequestRetrieveUpdateAPIView.as_view(), name='change_request-detail'),
+    path('requests/', ChangeRequestListAPIView.as_view()),
+    path('requests/<int:pk>/', ChangeRequestRetrieveUpdateAPIView.as_view(), name='change_request-detail'),
 
     path('bulk/', BulkCreateAPIView.as_view()),
 

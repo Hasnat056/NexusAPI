@@ -7,7 +7,7 @@ services:
       - "6379:6379"
       - "8001:8001"
     networks:
-      - lms_network
+      - nexus_network
 
   database:
     image: mysql:8.0
@@ -20,12 +20,12 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - lms_network
+      - nexus_network
 
   # DRF backend
-  web:
+  backend:
     build: .
-    container_name: drf-web
+    container_name: backend
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
@@ -38,20 +38,20 @@ services:
       - c-compiler
       - java-compiler
     networks:
-      - lms_network
+      - nexus_network
 
   # Celery worker
   celery-worker:
     build: .
     container_name: celery-worker
-    command: celery -A DjangoRESTProject_practice worker --loglevel=info
+    command: celery -A NexusAPI worker --loglevel=info
     volumes:
       - .:/app
     depends_on:
       - redis-server
-      - web
+      - backend
     networks:
-      - lms_network
+      - nexus_network
 
   # Python compiler
   python-compiler:
@@ -60,7 +60,7 @@ services:
     volumes:
       - code_files:/code
     networks:
-      - lms_network
+      - nexus_network
 
   # C/C++ compiler
   c-compiler:
@@ -69,7 +69,7 @@ services:
     volumes:
       - code_files:/code
     networks:
-      - lms_network
+      - nexus_network
 
   # Java compiler
   java-compiler:
@@ -78,12 +78,12 @@ services:
     volumes:
       - code_files:/code
     networks:
-      - lms_network
+      - nexus_network
 
 volumes:
   code_files:
   mysql_data:
 
 networks:
-  lms_network:
+  nexus_network:
     driver: bridge

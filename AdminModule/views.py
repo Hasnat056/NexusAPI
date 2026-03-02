@@ -299,7 +299,7 @@ class FacultyListCreateAPIView(
                 if data is None:
                     return super().list(request, *args, **kwargs)
                 page = self.paginate_queryset(data)
-                if page is None:
+                if page is not None:
                     return self.get_paginated_response(page)
                 return Response(data, status=status.HTTP_200_OK)
 
@@ -513,8 +513,10 @@ class ProgramListCreateAPIView(
     search_fields = ['program_id', 'program_name']
 
     def list(self, request, *args, **kwargs):
-        cache_key = f'admin:program_list'
+        cache_key = f'admin:programs_list'
         cached_data = cache.get(cache_key)
+        #print(cached_data)
+
         if cached_data is None:
             cache_programs_data_task.delay(request.user.id)
             return super().list(request, *args, **kwargs)
@@ -535,6 +537,8 @@ class ProgramListCreateAPIView(
             if len(filter_params) == 1 and 'department_id' in filter_params:
                 cache_key = f'admin:programs:department:{query_params.get("department_id")}'
                 data = cache.get(cache_key)
+                if data is None:
+                    return super().list(request, *args, **kwargs)
                 page = self.paginate_queryset(data)
                 if page is not None:
                     return self.get_paginated_response(page)
@@ -672,7 +676,7 @@ class SemesterListAPIView(
                 return super().list(request, *args, **kwargs)
             print('Cache Hit')
             page = self.paginate_queryset(data)
-            if page is None:
+            if page is not None:
                 return self.get_paginated_response(page)
             return Response(data, status=status.HTTP_200_OK)
         
@@ -750,7 +754,7 @@ class CourseAllocationListCreateAPIView (
                 cache_courseAllocation_data_task.delay(self.request.user.id)
                 return super().list(request, *args, **kwargs)
             page = self.paginate_queryset(data)
-            if page is None:
+            if page is not None:
                 return self.get_paginated_response(page)
             return Response(data, status=status.HTTP_200_OK)
 
@@ -813,7 +817,7 @@ class EnrollmentListCreateAPIView(
                 cache_enrollment_data_task.delay(self.request.user.id)
                 return super().list(request, *args, **kwargs)
             page = self.paginate_queryset(data)
-            if page is None:
+            if page is not None:
                 return self.get_paginated_response(page)
             return Response(data, status=status.HTTP_200_OK)
 
@@ -894,6 +898,7 @@ class ChangeRequestRetrieveUpdateAPIView(
     queryset = ChangeRequest.objects.all()
     serializer_class = ChangeRequestSerializer
 
+"""
 
 @extend_schema(
     responses={
@@ -911,6 +916,8 @@ class ChangeRequestRetrieveUpdateAPIView(
         )
     }
 )
+
+"""
 class ChangeRequestView(APIView):
     authentication_classes = []
     permission_classes = []
@@ -952,7 +959,7 @@ class BulkCreateAPIView(
         serializer = self.serializer_class(data=request.data, context={'request': request, 'target_model': target_model})
         if serializer.is_valid(raise_exception=True):
             result = serializer.save()
-            return Response({"message" : result}, status=status.HTTP_201_CREATED)
+            return Response(result, status=status.HTTP_201_CREATED)
 
 
     def get(self, request, *args, **kwargs):
@@ -961,7 +968,7 @@ class BulkCreateAPIView(
 
         target_model = request.query_params.get('type')
 
-        file_headers = ['password','person_id','image','first_name','last_name','father_name','gender','cnic','dob','contact_number','institutional_email','personal_email',
+        file_headers = ['password','image','first_name','last_name','father_name','gender','cnic','dob','contact_number','institutional_email','personal_email',
                           'religion','country','province','city','zipcode','street_address','degree_title_1','education_board_1','institution_1','passing_year_1',
                           'total_marks_1','obtained_marks_1','is_current_1','degree_title_2','education_board_2','institution_2','passing_year_2','total_marks_2','obtained_marks_2'
                          ,'is_current_2','degree_title_3','education_board_3','institution_3','passing_year_3',
@@ -988,7 +995,7 @@ class BulkCreateAPIView(
         buffer.close()
 
         return HttpResponse(template, content_type='text/csv',
-                            headers={'Content-Disposition': 'attachment; filename=template.csv'})
+                            headers={'Content-Disposition': f'attachment; filename={target_model}_template.csv'})
 
 
 

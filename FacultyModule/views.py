@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 
 from AdminModule.tasks import send_result_calculation_mail
-from DjangoRESTProject_practice import settings
+from NexusAPI import settings
 from AdminModule.serializers import FacultySerializer
 from FacultyModule.serializers import *
 from .mixins import *

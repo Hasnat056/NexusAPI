@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.core.mail import send_mail
 from django.urls import reverse
-from DjangoRESTProject_practice import settings
+from NexusAPI import settings
 
 from .permissions import *
 
@@ -28,6 +28,8 @@ class PersonSerializerMixin:
         person= None
         if user_data:
             user = User.objects.create_user(**user_data, username=person_data['institutional_email'])
+            user.set_password(user.password)
+            user.save()
 
         if person_data and model_data:
             if model == 'Faculty':
@@ -70,13 +72,13 @@ class PersonSerializerMixin:
         person_data = {}
         person = None
         if isinstance(instance, Faculty) or  isinstance(instance, Admin):
-            person_data = validated_data.pop('employee_id')
+            person_data = validated_data.pop('employee_id', {})
             person = instance.employee_id
         if isinstance(instance, Student):
             person_data = validated_data.pop('student_id')
             person = instance.student_id
 
-        if 'user' in person_data:
+        if person_data and ('user' in person_data):
             user_data = person_data.pop('user')
             user = person.user
             if user_data:
@@ -84,7 +86,7 @@ class PersonSerializerMixin:
                     setattr(user, attr, value)
                 user.save()
 
-        address_data = person_data.pop('address')
+        address_data = person_data.pop('address', {}) #fixed bug (testing)
         qualification_data = person_data.pop('qualification_set',[])
         model_data = validated_data
 
@@ -102,9 +104,8 @@ class PersonSerializerMixin:
             person.save()
 
 
-
-        address = person.address
         if address_data:
+            address = person.address  #fixed bug (testing)
             for attr, value in address_data.items():
                 setattr(address, attr, value)
             address.save()

@@ -1,5 +1,5 @@
 # Base image with Java
-FROM openjdk:20-slim
+FROM eclipse-temurin:21-jdk-jammy
 
 
 # Working directory for code execution

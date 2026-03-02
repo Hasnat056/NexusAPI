@@ -2,16 +2,18 @@ import csv
 import io
 import re
 from datetime import timedelta
+from decimal import Decimal
 
 from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Prefetch
 from django.http import Http404
 from django.shortcuts import get_list_or_404, get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 from django.urls import reverse
-from DjangoRESTProject_practice.celery import app
+from NexusAPI.celery import app
 
 from Models.models import *
 from django.contrib.auth.models import User
@@ -410,7 +412,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 class ProgramSerializer(serializers.ModelSerializer):
     urls = serializers.HyperlinkedIdentityField(
-        view_name='program-detail',
+        view_name='Admin:program-detail',
         lookup_field='program_id'
     )
     class Meta:
@@ -564,12 +566,15 @@ class ClassSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        scheme_of_studies = validated_data.pop('scheme_of_studies')
+        scheme_of_studies = validated_data.pop('scheme_of_studies', [])
         class_data = validated_data
 
         for attr, value in class_data.items():
             setattr(instance, attr, value)
             instance.save()
+
+        if not scheme_of_studies:
+            return instance
 
         semester_ids = [s['semester_id'] for s in scheme_of_studies]
         semester_queryset = get_list_or_404(Semester, semester_id__in=semester_ids)
@@ -661,6 +666,12 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
     def get_fields(self):
         fields = super().get_fields()
+
+        if not self.context.get('request'):
+            fields['allocation_id'].queryset = CourseAllocation.objects.none()
+            return fields
+
+
         queryset = CourseAllocation.objects.filter(status='Ongoing')
         if queryset.exists():
             fields['allocation_id'].queryset = queryset
@@ -716,6 +727,11 @@ class CourseAllocationSerializer(serializers.ModelSerializer, ResultCalculationM
 
     def get_fields(self):
         fields = super().get_fields()
+
+        if not self.context.get('request'):
+            fields['semester_id'].queryset = Semester.objects.none()
+            return fields
+
         queryset = Semester.objects.filter(status='Inactive',session__isnull=False, activation_deadline__isnull=False)
         if queryset.exists():
             fields['semester_id'].queryset = queryset
@@ -889,7 +905,11 @@ class BulkTranscriptSerializer(serializers.Serializer):
             raise serializers.ValidationError('Transcripts already exists')
 
 
-        student_list = Student.objects.filter(enrollment__allocation_id__semester_id=semester).prefetch_related('enrollment_set').prefetch_related('enrollment_set__result')
+        student_list = Student.objects.filter(enrollment__allocation_id__semester_id=semester).prefetch_related(
+            Prefetch(
+                'enrollment_set',queryset=Enrollment.objects.filter(allocation_id__semester_id=semester)
+                     .prefetch_related('result'))
+        )
 
         # checking if results exists for all enrollments of each student
         errors = {}
@@ -904,13 +924,15 @@ class BulkTranscriptSerializer(serializers.Serializer):
 
         # semester_gpa and total_credits calculations using results for all enrollments of a student
         for each_student in student_list:
-            gpa = 0.00
-            total_credits_attempted = 0.0
+            gpa = Decimal('0.00')
+            total_credits_attempted = Decimal('0.0')
 
             if each_student.enrollment_set.exists() and all([e.status == 'Completed' for e in each_student.enrollment_set.all()]):
                 gpa += sum([e.result.course_gpa*e.allocation_id.course_code.credit_hours for e in each_student.enrollment_set.all()])
                 total_credits_attempted += sum([e.allocation_id.course_code.credit_hours for e in each_student.enrollment_set.all()])
 
+            if total_credits_attempted == 0:
+                raise serializers.ValidationError('Total credits are zero, GPA cannot be calculated')
             gpa = gpa/total_credits_attempted
 
             data.append(
@@ -1018,7 +1040,6 @@ class FacultyStudentBulkSerializer(serializers.Serializer):
         return data
 
     def create(self, validated_data):
-        serializer_class = None
         insert_count = 0
         error_row_count = 0
         row_count = 0
@@ -1031,7 +1052,7 @@ class FacultyStudentBulkSerializer(serializers.Serializer):
 
             if self.context.get('target_model')== 'faculty':
                 serializer_class = FacultySerializer
-            if self.context.get('target_model')== 'student':
+            elif self.context.get('target_model')== 'student':
                 serializer_class = StudentSerializer
             else:
                 return {'message': 'Provide a valid type'}
@@ -1233,8 +1254,8 @@ class SemesterSerializer(serializers.ModelSerializer):
         if 'closing_deadline' in validated_data:
             errors = {}
             for each in instance.courseallocation_set.all():
-                for each_enrollment in each.enrollments.all():
-                    if not each.result.course_gpa:
+                for each_enrollment in each.enrollment_set.all():
+                    if not each_enrollment.result.course_gpa:
                         errors[each_enrollment.enrollment_id] = f'Course Allocation : {str(each)} has no result for enrollment {str(each_enrollment)}'
 
 

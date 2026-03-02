@@ -409,7 +409,7 @@ class LectureSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        validated_data['allocation_id'] = CourseAllocation.objects.get(allocation_id=self.context.get('allocation_id'))
+        validated_data['allocation_id'] = CourseAllocation.objects.get(allocation_id=self.context.get('allocation_id')).allocation_id
         lecture_count = Lecture.objects.filter(allocation_id=validated_data['allocation_id']).count()
         lecture_no = lecture_count +1
         lecture_id = f'{validated_data['allocation_id']}-{lecture_no}'

@@ -1,6 +1,7 @@
 from itertools import groupby
 from celery import shared_task
 from django.core.mail import send_mail
+from django.db import transaction
 from rest_framework.generics import get_object_or_404
 
 from Models.models import *
@@ -242,7 +243,7 @@ def cache_courseAllocation_data_task(user_id):
     queryset = CourseAllocation.objects.all()
     semester_based_queryset = queryset.order_by('semester_id')
     semester_distributed_queryset = {
-        semester_id : list(items) for semester_id, items in groupby(semester_based_queryset, key=lambda x : x.semester_id)
+        semester_id : list(items) for semester_id, items in groupby(semester_based_queryset, key=lambda x : x.semester_id.semester_id)
     }
     for key, value in semester_distributed_queryset.items():
         cache_key = f'admin:allocations:semester:{key}'
