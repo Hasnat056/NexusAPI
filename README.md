@@ -473,29 +473,7 @@ docker compose exec backend pytest FacultyModule/tests/ -v
 
 NexusAPI includes three Locust load test scenarios.
 
-### Install Locust:
-```bash
-pip install locust
-```
 
-### Run scenarios:
-
-**Normal load — 200 users, 10 minutes:**
-```bash
-locust -f locustfile.py NormalLoadUser --host http://localhost:8000
-```
-
-**Peak load — 1000 users, 5 minutes:**
-```bash
-locust -f locustfile.py PeakLoadUser --host http://localhost:8000
-```
-
-**Spike test — ramp to 5000 users:**
-```bash
-locust -f locustfile.py SpikeUser --host http://localhost:8000
-```
-
-Open `http://localhost:8089` for the real-time dashboard.
 
 ### Performance thresholds:
 
@@ -507,18 +485,6 @@ Open `http://localhost:8089` for the real-time dashboard.
 
 ---
 
-## Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Write tests for your changes
-4. Ensure all tests pass: `docker compose exec backend pytest`
-5. Ensure coverage doesn't drop below 80%
-6. Commit with a clear message: `git commit -m "feat: add your feature"`
-7. Push and open a Pull Request
 
----
 
-## License
-
-This project is licensed under the MIT License.
