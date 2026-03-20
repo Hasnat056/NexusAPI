@@ -7,7 +7,9 @@ from datetime import date, timedelta
 from Models.models import (
     Person, Department, Program, Class, Course,
     Faculty, Student, Admin, Semester, SemesterDetails,
-    CourseAllocation, Enrollment, Result
+    CourseAllocation, Enrollment, Result,
+    Assessment, AssessmentChecked, Lecture, Attendance,
+    ChangeRequest,
 )
 
 
@@ -275,8 +277,72 @@ def anon_client():
     return APIClient()
 
 
+# ---------------------------------------------------------------------------
+# Celery eager execution
+# ---------------------------------------------------------------------------
+
 @pytest.fixture(autouse=True)
 def celery_eager(settings):
-    """Force all Celery tasks to execute synchronously during tests."""
     settings.CELERY_TASK_ALWAYS_EAGER = True
-    settings.CELERY_TASK_EAGER_PROPAGATES = True  # surface exceptions instead of swallowing them
+    settings.CELERY_TASK_EAGER_PROPAGATES = True
+
+
+# ---------------------------------------------------------------------------
+# Faculty-specific fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def faculty_user(faculty_instance):
+    return faculty_instance.employee_id.user
+
+
+@pytest.fixture
+def assessment(db, course_allocation):
+    return Assessment.objects.create(
+        allocation_id=course_allocation,
+        assessment_type='Quiz',
+        assessment_name='Quiz 1',
+        assessment_date=date.today(),
+        weightage=10,
+        total_marks=20,
+        student_submission=False,
+    )
+
+
+@pytest.fixture
+def assessment_checked(db, assessment, enrollment):
+    return AssessmentChecked.objects.create(
+        assessment_id=assessment,
+        enrollment_id=enrollment,
+        obtained=None,
+    )
+
+
+@pytest.fixture
+def lecture(db, course_allocation, enrollment):
+    lec = Lecture.objects.create(
+        lecture_id=f'{course_allocation.allocation_id}-1',
+        lecture_no=1,
+        allocation_id=course_allocation,
+        starting_time=timezone.now() - timedelta(hours=1),
+        venue='Room 101',
+        duration=60,
+        topic='Introduction',
+    )
+    Attendance.objects.create(
+        lecture_id=lec,
+        student_id=enrollment.student_id,
+        attendance_date=lec.starting_time.date(),
+    )
+    return lec
+
+
+@pytest.fixture
+def change_request(db, faculty_instance, course_allocation):
+    return ChangeRequest.objects.create(
+        change_type='result_calculation',
+        target_allocation=course_allocation,
+        requested_by=faculty_instance.employee_id.user,
+        status='pending',
+        requested_at=timezone.now(),
+    )

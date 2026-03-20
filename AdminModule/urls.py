@@ -36,7 +36,7 @@ urlpatterns =[
     path('allocations/<int:allocation_id>/', CourseAllocationRetrieveUpdateDestroyAPIView.as_view(), name='allocation-detail'),
 
     path('enrollments/', EnrollmentListCreateAPIView.as_view()),
-    path('enrollments/<enrollment_id>/', EnrollmentRetrieveUpdateDestroyAPIView.as_view(), name='enrollment-detail'),
+    path('enrollments/<int:enrollment_id>/', EnrollmentRetrieveUpdateDestroyAPIView.as_view(), name='enrollment-detail'),
 
     path('transcripts/', TranscriptListCreateAPIView.as_view()),
 

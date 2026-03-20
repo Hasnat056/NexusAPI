@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import User, Group
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 import statistics
@@ -162,7 +164,7 @@ class PersonSerializerMixin:
 class ResultCalculationMixin:
     def calculate_gpa(self, data):
         results = Result.objects.filter(enrollment_id__in=data.keys())
-        values = list(data.values)
+        values = list(data.values())
         final_result_data = {}
         if len(values) < 20:
             for enrollment, obtained in data.items():
@@ -237,16 +239,16 @@ class ResultCalculationMixin:
         results = {}
         if isinstance(instance, CourseAllocation):
             enrollments = Enrollment.objects.filter(allocation_id=instance).prefetch_related('assessmentchecked_set')
-            for each_enrollemnt in enrollments:
-                if 'assessmentchecked_set' in each_enrollemnt:
-                    student_result = 0.00
-                    for each_assessment in each_enrollemnt.assessmentchecked_set.all():
+            for each_enrollment in list(enrollments):
+                if each_enrollment.assessmentchecked_set.exists():
+                    student_result = Decimal('0.00')
+                    for each_assessment in each_enrollment.assessmentchecked_set.all():
                         student_result += ((
                                                        each_assessment.obtained / each_assessment.assessment_id.total_marks) * each_assessment.assessment_id.weightage)
 
-                    results[each_enrollemnt] = student_result
-                    each_enrollemnt.status = 'Completed'
-                    each_enrollemnt.save()
+                    results[each_enrollment] = student_result
+                    each_enrollment.status = 'Completed'
+                    each_enrollment.save()
             return self.calculate_gpa(results)
         else:
             return {'message': 'Valid course allocation instance not provided.'}

@@ -116,6 +116,16 @@ Authorization:
   "class_id" : 2
 }
 
+### Admin Program Create
+POST http://localhost:8000/api/admin/programs/
+Content-Type: application/json
+Authorization:
+
+{
+  "program_id" : "BSCS",
+  "program_name" : "Bachelor of Computer Science"
+}
+
 
 ### Admin Program List
 GET http://localhost:8000/api/admin/programs/

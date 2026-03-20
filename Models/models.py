@@ -24,13 +24,14 @@ class Department(models.Model):
 
 class Program (models.Model):
     program_id = models.CharField(primary_key=True, max_length=10)
-    program_name = models.CharField(max_length=100)
+    program_name = models.CharField(max_length=100, db_index=True)
     department_id = models.ForeignKey('Department', on_delete=models.RESTRICT, null=True)
     total_semesters = models.IntegerField(blank=True, default=8)
     fee_per_semester = models.IntegerField(blank=True, null=True)
 
     class Meta:
         db_table = 'program'
+        ordering = ['program_id',]
 
     def __str__(self):
         return self.program_id
@@ -59,13 +60,14 @@ class Semester(models.Model):
     ]
     semester_id = models.AutoField(primary_key=True)
     semester_no = models.IntegerField()
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Inactive')
-    session = models.CharField(max_length=15, blank=True, null=True)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Inactive', db_index=True)
+    session = models.CharField(max_length=15, blank=True, null=True, db_index=True)
     activation_deadline = models.DateTimeField(blank=True, null=True)
     closing_deadline = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         db_table = 'semester'
+        ordering = ['semester_id', 'status']
 
     def __str__(self):
         class_id = self.semesterdetails_set.values_list('class_id', flat=True).first()
@@ -81,7 +83,7 @@ class Semester(models.Model):
 
 class Course(models.Model):
     course_code = models.CharField(primary_key=True, max_length=20)
-    course_name = models.CharField(max_length=100)
+    course_name = models.CharField(max_length=100, db_index=True)
     credit_hours = models.IntegerField()
     lab = models.BooleanField(default=False)
     pre_requisite = models.ForeignKey('self', on_delete=models.SET_NULL, db_column='preRequisite', blank=True, null=True)
@@ -89,6 +91,7 @@ class Course(models.Model):
 
     class Meta:
         db_table = 'course'
+        ordering = ['course_code', 'course_name']
 
     def __str__(self):
         return self.course_code
@@ -100,10 +103,11 @@ class SemesterDetails (models.Model):
     id = models.AutoField(primary_key=True)
     course_code = models.ForeignKey('Course', on_delete=models.CASCADE, blank=True, null=True)
     class_id = models.ForeignKey('Class', on_delete=models.RESTRICT)
-    semester_id = models.ForeignKey('Semester', on_delete=models.RESTRICT)
+    semester_id = models.ForeignKey('Semester', on_delete=models.RESTRICT, db_index=True)
     class Meta:
         db_table = 'semesterDetails'
         unique_together = (('course_code', 'class_id', 'semester_id'),)
+        ordering = ['id']
 
 
 
@@ -116,14 +120,15 @@ class CourseAllocation(models.Model):
         ('Cancelled','Cancelled'),
     ]
     allocation_id = models.AutoField(primary_key=True)
-    teacher_id = models.ForeignKey('Faculty', on_delete=models.RESTRICT)
+    teacher_id = models.ForeignKey('Faculty', on_delete=models.RESTRICT, db_index=True)
     course_code = models.ForeignKey('Course', on_delete=models.RESTRICT)
-    semester_id = models.ForeignKey('Semester', on_delete=models.RESTRICT)
-    session = models.CharField(max_length=20, blank=True, null=True)
+    semester_id = models.ForeignKey('Semester', on_delete=models.RESTRICT, db_index=True)
+    session = models.CharField(max_length=20, blank=True, null=True, db_index=True)
     status = models.CharField(max_length=9, choices=STATUS_CHOICES, default='Inactive', db_column='status')
 
     class Meta:
         db_table = 'courseAllocation'
+        ordering = ['allocation_id', 'teacher_id', 'semester_id']
 
     def __str__(self):
         return f"[{self.course_code}_{self.teacher_id}_{self.session}]"
@@ -152,7 +157,7 @@ class Assessment(models.Model):
         ('Lab', 'Lab')
     ]
     assessment_id = models.AutoField( primary_key=True)
-    allocation_id = models.ForeignKey('CourseAllocation', on_delete=models.CASCADE, db_column='allocationID')
+    allocation_id = models.ForeignKey('CourseAllocation', on_delete=models.CASCADE, db_column='allocationID', db_index=True)
     assessment_type = models.CharField(choices=ASSESSMENT_TYPE_CHOICES, max_length=15)
     assessment_name = models.CharField(max_length=20)
     weightage = models.IntegerField()
@@ -164,6 +169,7 @@ class Assessment(models.Model):
 
     class Meta:
         db_table = 'assessment'
+        ordering = ['assessment_id']
 
     def __str__(self):
         return f"{self.allocation_id}--{self.assessment_name}"
@@ -203,7 +209,7 @@ class AssessmentChecked(models.Model):
 class Lecture(models.Model):
     lecture_id = models.CharField(primary_key=True, max_length=10)
     allocation_id = models.ForeignKey('CourseAllocation', on_delete=models.CASCADE)
-    lecture_no = models.IntegerField()
+    lecture_no = models.PositiveIntegerField()
     venue = models.CharField(max_length=50, blank=True, null=True)
     starting_time = models.DateTimeField(db_column='startingTime')
     duration = models.IntegerField(blank=True, null=True)
@@ -211,7 +217,7 @@ class Lecture(models.Model):
 
     class Meta:
         db_table = 'lecture'
-        ordering = ('starting_time',)
+        ordering = ['starting_time',]
 
 
     def save(self, *args, **kwargs):
@@ -226,13 +232,14 @@ class Lecture(models.Model):
 class Attendance(models.Model):
     id = models.AutoField(primary_key=True)
     attendance_date = models.DateField(blank=True, null=True)
-    student_id = models.ForeignKey('Student', on_delete=models.CASCADE)
+    student_id = models.ForeignKey('Student', on_delete=models.CASCADE, db_index=True)
     lecture_id = models.ForeignKey('Lecture', on_delete=models.CASCADE)
     is_present = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'attendance'
         unique_together = (('attendance_date', 'student_id','lecture_id'),)
+
 
 class Enrollment(models.Model):
     STATUS_CHOICES = [
@@ -242,14 +249,15 @@ class Enrollment(models.Model):
         ('Dropped', 'Dropped'),
     ]
     enrollment_id = models.AutoField(primary_key=True)
-    student_id = models.ForeignKey('Student', on_delete=models.RESTRICT)
+    student_id = models.ForeignKey('Student', on_delete=models.RESTRICT, db_index=True)
     allocation_id = models.ForeignKey('CourseAllocation', on_delete=models.RESTRICT)
     enrollment_date = models.DateTimeField(default=timezone.now)
-    status = models.CharField(max_length=9, default='Inactive', choices=STATUS_CHOICES)
+    status = models.CharField(max_length=9, default='Inactive', choices=STATUS_CHOICES, db_index=True)
 
     class Meta:
         db_table = 'enrollment'
         unique_together = (('student_id', 'allocation_id'),)
+        ordering = ['enrollment_id', 'student_id', 'allocation_id',]
 
     def __str__(self):
         return f"{self.student_id}--{self.allocation_id}"
@@ -266,7 +274,7 @@ class Reviews(models.Model):
         db_table = 'reviews'
         constraints = [
             CheckConstraint(
-            check=Q(rating__gte=0.00) & Q(rating__lte=10.00),
+            condition=Q(rating__gte=0.00) & Q(rating__lte=10.00),
             name= 'rating_range'
             )
         ]
@@ -277,7 +285,7 @@ class Reviews(models.Model):
 
 class Result(models.Model):
     result_id = models.AutoField(primary_key=True)
-    enrollment_id = models.OneToOneField('Enrollment', on_delete=models.CASCADE)
+    enrollment_id = models.OneToOneField('Enrollment', on_delete=models.CASCADE, db_index=True)
     course_gpa = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True)
     obtained_marks = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True)
 
@@ -285,11 +293,11 @@ class Result(models.Model):
         db_table = 'result'
         constraints = [
             CheckConstraint(
-                check=Q(obtained_marks__gte=0) & Q(obtained_marks__lte=100),
+                condition=Q(obtained_marks__gte=0) & Q(obtained_marks__lte=100),
                 name='valid_obtained_marks_range'
             ),
             CheckConstraint(
-                check = Q(course_gpa__gte=0.00) & Q(course_gpa__lte=4.00),
+                condition = Q(course_gpa__gte=0.00) & Q(course_gpa__lte=4.00),
                 name='valid_course_gpa_range'
             )
         ]
@@ -303,7 +311,7 @@ class Result(models.Model):
 
 class Transcript(models.Model):
     id = models.AutoField(primary_key=True)
-    student_id = models.ForeignKey('Student', on_delete=models.CASCADE)
+    student_id = models.ForeignKey('Student', on_delete=models.CASCADE, db_index=True)
     semester_id = models.ForeignKey('Semester', on_delete=models.CASCADE)
     total_credits = models.IntegerField()
     semester_gpa = models.DecimalField( max_digits=4, decimal_places=2)
@@ -313,7 +321,7 @@ class Transcript(models.Model):
         unique_together = (('student_id', 'semester_id'),)
         constraints = [
             CheckConstraint(
-                check = Q(semester_gpa__gte=0.00) & Q(semester_gpa__lte=4.00),
+                condition = Q(semester_gpa__gte=0.00) & Q(semester_gpa__lte=4.00),
                 name='semester_gpa_range'
             )
         ]
@@ -334,7 +342,7 @@ class Person(models.Model):
     ]
     image = models.ImageField(upload_to="user_images/" ,null=True, blank=True)
     person_id = models.CharField(max_length=20, primary_key=True)
-    first_name = models.CharField(max_length=100)
+    first_name = models.CharField(max_length=100, db_index=True)
     last_name = models.CharField(max_length=100)
     father_name = models.CharField(max_length=100)
     gender = models.CharField(max_length=6, choices=GENDER_CHOICES)
@@ -342,13 +350,14 @@ class Person(models.Model):
     cnic = models.CharField(db_column='CNIC', max_length=15, unique=True)
     contact_number = models.CharField(max_length=15, unique=True)
     religion = models.CharField( max_length=100, blank=True, null=True)
-    institutional_email = models.EmailField( unique=True)
+    institutional_email = models.EmailField(unique=True, db_index=True)
     personal_email = models.EmailField( blank=True, null=True)
     user = models.OneToOneField(User, db_column='userID', on_delete=models.SET_NULL, null=True, blank=True)
     type = models.CharField(db_column='type', max_length=7, choices=TYPE_CHOICES)
 
     class Meta:
         db_table = 'person'
+        ordering = ['person_id','first_name','last_name']
 
     def __str__(self):
         return self.person_id
@@ -376,6 +385,7 @@ class Admin(models.Model):
 
     class Meta:
         db_table = 'Admin'
+        ordering = ['employee_id']
 
     def __str__(self):
         return self.employee_id_id
@@ -394,12 +404,13 @@ class Faculty(models.Model):
 
     ]
     employee_id = models.OneToOneField(Person, on_delete=models.RESTRICT, primary_key=True)
-    department_id = models.ForeignKey('Department',  on_delete=models.RESTRICT)
-    designation = models.CharField(choices=DESIGNATION_CHOICES, max_length=20)
+    department_id = models.ForeignKey('Department',  on_delete=models.RESTRICT, db_index=True)
+    designation = models.CharField(choices=DESIGNATION_CHOICES, max_length=20, db_index=True)
     joining_date = models.DateField(blank=True, default=current_time)
 
     class Meta:
         db_table = 'Faculty'
+        ordering = ['employee_id', 'department_id', 'designation']
 
     def __str__(self):
         return self.employee_id.person_id
@@ -420,14 +431,15 @@ class Student(models.Model):
         ('On Probation', 'On Probation'),
     ]
 
-    student_id = models.ForeignKey('Person',  on_delete=models.RESTRICT)
+    student_id = models.OneToOneField('Person',  on_delete=models.RESTRICT)
     program_id = models.ForeignKey('Program',  on_delete=models.RESTRICT)
-    class_id = models.ForeignKey('Class',  on_delete=models.RESTRICT)
+    class_id = models.ForeignKey('Class',  on_delete=models.RESTRICT, db_index=True)
     admission_date = models.DateField(blank=True, default=current_time)
-    status = models.CharField(db_column='status', choices=STATUS_CHOICES, max_length=12, default='Active')
+    status = models.CharField(db_column='status', choices=STATUS_CHOICES, max_length=12, default='Active', db_index=True)
 
     class Meta:
         db_table = 'Student'
+        ordering = ['student_id', 'class_id', 'admission_date']
 
     def __str__(self):
         return f'{self.student_id.person_id}'
@@ -444,12 +456,13 @@ class Address(models.Model):
     person_id = models.OneToOneField('Person', on_delete=models.CASCADE, primary_key=True)
     country = models.CharField(max_length=50, blank=True)
     province = models.CharField(max_length=50, blank=True, null=True)
-    city = models.CharField(max_length=50, blank=True)
+    city = models.CharField(max_length=50, blank=True, db_index=True)
     zipcode = models.IntegerField(blank=True, null=True)
     street_address = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         db_table = 'address'
+
 
 
 
@@ -471,10 +484,10 @@ class Qualification(models.Model):
 
 class AuditTrail(models.Model):
     audit_id = models.AutoField( primary_key=True)
-    userid = models.ForeignKey('Person', on_delete=models.CASCADE)
+    userid = models.ForeignKey('Person', on_delete=models.CASCADE, db_index=True)
     action_type = models.CharField( max_length=6)
     entity_name = models.CharField( max_length=50)
-    time_stamp = models.DateTimeField(default=datetime.now)
+    time_stamp = models.DateTimeField(default=datetime.now, db_index=True)
     ip_address = models.CharField( max_length=45)
     user_agent = models.CharField(max_length=255)
     old_value = models.JSONField(blank=True, null=True)
@@ -482,6 +495,7 @@ class AuditTrail(models.Model):
 
     class Meta:
         db_table = 'auditTrail'
+        ordering=['-time_stamp']
 
 
 
@@ -503,7 +517,7 @@ class ChangeRequest(models.Model):
     ]
 
     # Core fields
-    change_type = models.CharField(max_length=20, choices=CHANGE_TYPES)
+    change_type = models.CharField(max_length=20, choices=CHANGE_TYPES, db_index=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     confirmation_token = models.UUIDField(default=uuid.uuid4, unique=True)
 

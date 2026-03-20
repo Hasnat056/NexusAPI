@@ -12,7 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 import sys
 import socket
+from datetime import timedelta
 from pathlib import Path
+from decouple import config, Csv
 
 from rest_framework.permissions import DjangoModelPermissions
 
@@ -24,12 +26,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-644i+jc^d^bcofpmy+hqy1b-!_cj4-grhvcv9xfdb^zz#)ws!l'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 
 # Application definition
@@ -45,7 +47,6 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_filters',
     'drf_spectacular',
-    'algoliasearch_django',
 
 
     'Models',
@@ -93,11 +94,11 @@ WSGI_APPLICATION = 'NexusAPI.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'LMS',
-        'USER': 'adminUser',
-        'PASSWORD': 'admin123',
-        'HOST': 'database',
-        'PORT': '3306',
+        'NAME': config('DB_NAME', default='LMS'),
+        'USER': config('DB_USER', default='adminUser'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='database'),
+        'PORT': config('DB_PORT', default='3306'),
     }
 }
 
@@ -125,11 +126,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'Asia/Karachi'
-
 USE_I18N = True
-
 USE_TZ = True
 
 
@@ -137,6 +135,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -164,7 +164,20 @@ REST_FRAMEWORK = {
 
 }
 
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis-server:6379/0')
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=config('JWT_ACCESS_TOKEN_MINUTES', default=60, cast=int)),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=config('JWT_REFRESH_TOKEN_DAYS', default=7, cast=int)),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+
+
+
+# Redis Settings
+
+REDIS_URL = config('REDIS_URL', default='redis://redis-server:6379/0')
 
 CACHES = {
     'default': {
@@ -175,30 +188,29 @@ CACHES = {
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
-
-            #"COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
-            "CONNECTION_POOL_KWARGS": {"max_connections": 100, "retry_on_timeout": True},
-            "SOCKET_CONNECT_TIMEOUT": 2,    # Connection timeout
-            "SOCKET_TIMEOUT": 2,            # Read/write timeout
-            "IGNORE_EXCEPTIONS": True,      # Don't crash if Redis is down
+            'CONNECTION_POOL_KWARGS': {'max_connections': 100, 'retry_on_timeout': True},
+            'SOCKET_CONNECT_TIMEOUT': 2,
+            'SOCKET_TIMEOUT': 2,
+            'IGNORE_EXCEPTIONS': True,
         },
     },
-
     'pages': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL_PAGES', REDIS_URL),
+        'LOCATION': config('REDIS_URL_PAGES', default=REDIS_URL),
         'TIMEOUT': 60,
         'KEY_PREFIX': 'lms:pages',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',  # Keep it consistent
+            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
         },
     },
 }
 
 
-CELERY_BROKER_URL = 'redis://redis-server:6379/0'
-CELERY_RESULT_BACKEND = 'redis://redis-server:6379/1'
+
+# Celery Settings
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis-server:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://redis-server:6379/1')
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -208,30 +220,17 @@ CELERY_RESULT_EXPIRES = 3600
 CELERY_WORKER_CONCURRENCY = 4
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 100
 
-# for windows OS
 CELERY_TASK_DEFAULT_QUEUE = 'default'
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_WORKER_POOL = 'solo'
 
 
-ALGOLIA = {
-    'APPLICATION_ID': '7MAPGJN7HA',
-    'API_KEY': 'c433149a484ef1fbbf6390c0399d500e',
-    'INDEX_PREFIX' : 'P1',
-}
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-
-
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
+# Email Server
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-
-# Replace with your Gmail address and Google App Password
-EMAIL_HOST_USER = "rhays056@gmail.com"
-EMAIL_HOST_PASSWORD = "suuh vrxz dyfg jten"
-
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

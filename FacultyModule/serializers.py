@@ -167,7 +167,7 @@ class AssessmentSerializer(serializers.ModelSerializer):
 
     def validate_submission_deadline(self, value):
         if not value:
-            return self.instance.submission_deadline if self.instance.submission_deadline else None
+            return self.instance.submission_deadline if (self.instance and self.instance.submission_deadline) else None
 
         if self.instance and self.instance.submission_deadline == value:
             return value
@@ -197,16 +197,19 @@ class AssessmentSerializer(serializers.ModelSerializer):
         all_assessments = Assessment.objects.filter(allocation_id=allocation_id)
         total_weightage = 0
         if all_assessments.exists():
-            total_weightage = sum([each.weightage for each in all_assessments])
+            total_weightage = sum([
+                each.weightage if not self.instance or each.assessment_id != self.instance.assessment_id else 0
+                for each in all_assessments
+            ])
 
         #weightage upper threshold validation
         if total_weightage + data['weightage'] > 100:
-            errors['weightage'] = f'Total weightage: {total_weightage+data['weightage']}, Error: Total weightage cannot exceed 100 for allocation_id: {data["allocation_id"]}'
+            errors['weightage'] = f'Total weightage: {total_weightage+data['weightage']}, Error: Total weightage cannot exceed 100 for allocation_id: {allocation_id}'
 
         #assessment name uniqueness validation
         same_assessment = all_assessments.filter(assessment_type=data['assessment_type']).filter(assessment_name=data['assessment_name'])
         if same_assessment.exists():
-            errors['assessment_name'] = f"Assessment {data['assessment_name']} already exists for the allocation_id: {data['allocation_id']}"
+            errors['assessment_name'] = f"Assessment {data['assessment_name']} already exists for the allocation_id: {allocation_id}"
 
         #submission deadline validation provided student_submission == True
         if data['student_submission'] == True and not data['submission_deadline']:
@@ -288,7 +291,7 @@ class AssessmentSerializer(serializers.ModelSerializer):
             validated_data.pop('submission_deadline')
 
         if 'assessmentchecked_set' in validated_data:
-            assessmentChecked_data = validated_data.pop('assessmentchecked_set')
+            assessmentChecked_data = validated_data.pop('assessmentchecked_set',{})
             if assessmentChecked_data and instance.assessmentchecked_set.exists():
                 for each in instance.assessmentchecked_set.all():
                     data = next(
@@ -409,10 +412,10 @@ class LectureSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        validated_data['allocation_id'] = CourseAllocation.objects.get(allocation_id=self.context.get('allocation_id')).allocation_id
+        validated_data['allocation_id'] = CourseAllocation.objects.get(allocation_id=self.context.get('allocation_id'))
         lecture_count = Lecture.objects.filter(allocation_id=validated_data['allocation_id']).count()
         lecture_no = lecture_count +1
-        lecture_id = f'{validated_data['allocation_id']}-{lecture_no}'
+        lecture_id = f'{validated_data['allocation_id'].allocation_id}-{lecture_no}'
         validated_data['lecture_id'] = lecture_id
         validated_data['lecture_no'] = lecture_no
 
@@ -543,10 +546,10 @@ class FacultyRequestsSerializer(
             result_data = self.calculate_result(allocation)
             instance.status = 'applied'
             instance.applied_at = timezone.now()
-            allocation.status = 'Complted'
+            allocation.status = 'Completed'
             allocation.save()
             instance.save()
-            print(result_data)
+            #print(result_data)
 
             return instance
 

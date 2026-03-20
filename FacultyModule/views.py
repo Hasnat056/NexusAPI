@@ -86,7 +86,7 @@ class FacultyDashboardView(
         completed_allocations = faculty.courseallocation_set.filter(status='Completed').count()
         allocation_average_success = {}
         for each in faculty.courseallocation_set.filter(status='Completed'):
-            average = sum([e.result.obtained_marks for e in each.enrollment_set.all() if e.result.obtained_marks])/ each.enrollment_set.all().count()
+            average = sum([e.result.obtained_marks for e in each.enrollment_set.all() if e.result.obtained_marks])/ each.enrollment_set.all().count() if each.enrollment_set.count() else 1
             allocation_average_success[each.allocation_id] = average
 
         data = {
@@ -358,7 +358,7 @@ class ResultCalculationRequest(
             if not admin:
                 return Response(data={'message': 'Action not possible'}, status=status.HTTP_403_FORBIDDEN)
 
-            send_result_calculation_mail.apply_aysnc(args=[change_request.pk, confirmation_link, admin.employee_id.institutional_email], eta=timezone.now()+timedelta(minutes=2))
+            send_result_calculation_mail.apply_async(args=[change_request.pk, confirmation_link, admin.employee_id.institutional_email], eta=timezone.now()+timedelta(minutes=2))
 
             return Response(data={'message': 'The request has been successfully sent to the admin'})
         return Response(data={'message': 'A valid user not provided'}, status=status.HTTP_403_FORBIDDEN)
