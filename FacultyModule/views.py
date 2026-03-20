@@ -133,9 +133,9 @@ class FacultyProfileView(
         if serializer.is_valid():
             instance = serializer.save()
             cache.delete(cache_key)
-            cache.set(cache_key, instance.data, timeout=60*5)
+            cache.set(cache_key, serializer.data, timeout=60*5)
 
-            return Response(data=instance.data, status=status.HTTP_200_OK)
+            return Response(data=serializer.data, status=status.HTTP_200_OK)
         else:
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

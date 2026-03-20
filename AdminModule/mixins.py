@@ -107,7 +107,7 @@ class PersonSerializerMixin:
 
 
         if address_data:
-            address = person.address  #fixed bug (testing)
+            address = person.address  if hasattr(person, 'address') else Address.objects.create(person_id=person) #fixed bug (testing)
             for attr, value in address_data.items():
                 setattr(address, attr, value)
             address.save()

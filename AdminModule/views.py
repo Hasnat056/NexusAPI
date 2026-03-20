@@ -248,8 +248,8 @@ class AdminProfileAPIView(
         if serializer.is_valid():
             instance = serializer.save()
             cache.delete(cache_key)
-            cache.set(cache_key,instance.data,timeout=60*60*24)
-            return Response(instance.data,status=status.HTTP_200_OK)
+            cache.set(cache_key,serializer.data,timeout=60*60*24)
+            return Response(serializer.data,status=status.HTTP_200_OK)
 
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
